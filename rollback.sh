@@ -79,7 +79,9 @@ if ((NGINX_CHANGED)); then
         fi
     done
     if ((errors)); then echo 'FAIL: domain rebuild failed; no nginx restart'; exit 1; fi
-    if nginx -t; then
+    if ! systemctl is-active --quiet nginx; then
+        echo 'SKIP: nginx nije aktivan (Apache-only server), bez restarta'
+    elif nginx -t; then
         if systemctl restart nginx; then echo 'PASS: nginx restarted'; else echo 'FAIL: nginx restart'; ((errors+=1)); fi
     else
         echo 'FAIL: nginx syntax; no nginx restart'; ((errors+=1))
@@ -119,7 +121,7 @@ if nginx -T >"$WORK/nginx-dump" 2>"$WORK/nginx-errors"; then
 else
     echo 'FAIL: nginx -T failed'; cat "$WORK/nginx-errors"; ((errors+=1))
 fi
-if nginx -t && systemctl is-active --quiet nginx; then echo 'PASS: nginx running'; else echo 'FAIL: nginx'; ((errors+=1)); fi
+if ! systemctl is-enabled --quiet nginx 2>/dev/null && ! systemctl is-active --quiet nginx; then echo 'SKIP: nginx nije u upotrebi'; elif nginx -t && systemctl is-active --quiet nginx; then echo 'PASS: nginx running'; else echo 'FAIL: nginx'; ((errors+=1)); fi
 for svc in "${FPM_SERVICES[@]:-}"; do
     [[ -n "$svc" ]] || continue
     if systemctl is-active --quiet "$svc"; then echo "PASS: $svc running"; else echo "FAIL: $svc not running"; ((errors+=1)); fi
