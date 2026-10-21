@@ -59,7 +59,8 @@ if ((${#CHANGED[@]})); then
     shopt -s nullglob
     for path in /home/*/conf/web; do BACKUP_PATHS+=("$path"); done
     shopt -u nullglob
-    tar -czf "$BACKUP_DIR/configurations.tar.gz" "${BACKUP_PATHS[@]}"
+    # tar rc=1 znaci samo "fajl se menjao dok je citan" (npr. log koji nginx upisuje u /etc/nginx); backup je i dalje upotrebljiv
+    tar --warning=no-file-changed -czf "$BACKUP_DIR/configurations.tar.gz" "${BACKUP_PATHS[@]}" || { rc=$?; [ "$rc" -eq 1 ] || { echo "FAIL: backup tar (rc=$rc)"; exit 1; }; echo "WARN: neki fajlovi su se menjali tokom backup-a, nastavljam"; }
     tar -tzf "$BACKUP_DIR/configurations.tar.gz" >/dev/null
     echo "Backup: $BACKUP_DIR/configurations.tar.gz"
     for i in "${CHANGED[@]}"; do cat "$WORK/new/$i" > "${FILES[$i]}"; done
