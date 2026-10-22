@@ -130,17 +130,11 @@ done
 if systemctl is-active --quiet apache2; then
     if apache2ctl configtest; then echo 'PASS: apache2 syntax and service'; else echo 'FAIL: apache2 syntax'; ((errors+=1)); fi
 fi
-python3 - <<'PY'
-from pathlib import Path
-import re
-print('PHP directive report (INFO only, existing directives may predate rollback):')
-for p in sorted(Path('/etc/php').rglob('php.ini')):
-    vals=[]
-    for line in p.read_text(errors='replace').splitlines():
-        match=re.match(r'^\s*(session\.(?:upload_progress\.enabled|use_strict_mode))\s*=\s*([^;#]*)',line)
-        if match: vals.append(f'{match.group(1)}={match.group(2).strip()}')
-    if vals: print('INFO:',p,', '.join(vals))
-PY
+echo 'PHP directive report (INFO only, existing directives may predate rollback):'
+find /etc/php -type f -name php.ini 2>/dev/null | sort | while read -r pini; do
+    vals=$(grep -hoE '^[[:space:]]*session\.(upload_progress\.enabled|use_strict_mode)[[:space:]]*=[[:space:]]*[^;#]*' "$pini" | sed 's/[[:space:]]//g' | paste -sd', ' -)
+    [ -n "$vals" ] && echo "INFO: $pini $vals"
+done
 printf '\n=== Final report ===\nNginx templates changed: %d\nPHP configurations changed: %d\nErrors: %d\n' "$NGINX_CHANGED" "$PHP_CHANGED" "$errors"
 if ((${#CHANGED[@]})); then echo "Backup: $BACKUP_DIR"; fi
 if ((errors)); then echo 'FAIL: ROLLBACK NEEDS ATTENTION'; exit 1; fi
